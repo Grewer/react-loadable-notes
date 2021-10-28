@@ -1,15 +1,13 @@
 import './App.css';
+import Loadable from 'react-loadable';
 
+import Loading from './my-loading-component';
 
-function App(props) {
+const LoadableComponent = Loadable({
+    loader: () => import('./my-component'),
+    loading: Loading,
+});
 
-    console.log('App', props)
-
-    return (
-        <div className="App">
-
-        </div>
-    );
+export default function App() {
+    return <LoadableComponent/>;
 }
-
-export default App;
