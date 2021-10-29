@@ -1,5 +1,5 @@
 import './App.css';
-import Loadable from 'react-loadable';
+import Loadable from './loadable';
 
 import Loading from './my-loading-component';
 
