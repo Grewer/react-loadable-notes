@@ -5,14 +5,14 @@ const ALL_INITIALIZERS = [];
 const READY_INITIALIZERS = [];
 
 function isWebpackReady(getModuleIds) {
-    if (typeof __webpack_modules__ !== "object") {
+    if (typeof window.__webpack_modules__ !== "object") {
         return false;
     }
 
     return getModuleIds().every(moduleId => {
         return (
             typeof moduleId !== "undefined" &&
-            typeof __webpack_modules__[moduleId] !== "undefined"
+            typeof window.__webpack_modules__[moduleId] !== "undefined"
         );
     });
 }
@@ -97,10 +97,15 @@ function render(loaded, props) {
 }
 
 function createLoadableComponent(loadFn, options) {
+    // loading 的判断, 忽略
     if (!options.loading) {
         throw new Error("react-loadable requires a `loading` component");
     }
 
+    // 创建配置项, 覆盖默认值
+    // 其中 render 源码:  function render(loaded, props) {
+    //     return React.createElement(resolve(loaded), props);
+    // }
     let opts = Object.assign(
         {
             loader: null,
@@ -114,6 +119,7 @@ function createLoadableComponent(loadFn, options) {
         options
     );
 
+    // 结果, 用于 调用 loader
     let res = null;
 
     function init() {
@@ -121,16 +127,6 @@ function createLoadableComponent(loadFn, options) {
             res = loadFn(opts.loader);
         }
         return res.promise;
-    }
-
-    ALL_INITIALIZERS.push(init);
-
-    if (typeof opts.webpack === "function") {
-        READY_INITIALIZERS.push(() => {
-            if (isWebpackReady(opts.webpack)) {
-                return init();
-            }
-        });
     }
 
     return class LoadableComponent extends React.Component {
@@ -268,59 +264,5 @@ function LoadableMap(opts) {
 }
 
 Loadable.Map = LoadableMap;
-
-class Capture extends React.Component {
-    static propTypes = {
-        report: PropTypes.func.isRequired
-    };
-
-    static childContextTypes = {
-        loadable: PropTypes.shape({
-            report: PropTypes.func.isRequired
-        }).isRequired
-    };
-
-    getChildContext() {
-        return {
-            loadable: {
-                report: this.props.report
-            }
-        };
-    }
-
-    render() {
-        return React.Children.only(this.props.children);
-    }
-}
-
-Loadable.Capture = Capture;
-
-function flushInitializers(initializers) {
-    let promises = [];
-
-    while (initializers.length) {
-        let init = initializers.pop();
-        promises.push(init());
-    }
-
-    return Promise.all(promises).then(() => {
-        if (initializers.length) {
-            return flushInitializers(initializers);
-        }
-    });
-}
-
-Loadable.preloadAll = () => {
-    return new Promise((resolve, reject) => {
-        flushInitializers(ALL_INITIALIZERS).then(resolve, reject);
-    });
-};
-
-Loadable.preloadReady = () => {
-    return new Promise((resolve, reject) => {
-        // We always will resolve, errors should be handled within loading UIs.
-        flushInitializers(READY_INITIALIZERS).then(resolve, resolve);
-    });
-};
 
 module.exports = Loadable;
